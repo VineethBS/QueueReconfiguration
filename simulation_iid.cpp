@@ -16,7 +16,7 @@ using namespace std;
 #define MIN(a,b) (a < b ? a : b)
 #define MAX(a,b) (a > b ? a : b)
 
-// Parameters for the simulation
+// ################# Parameters for the simulation
 vector<double> arrival_batch_size, arrival_prob;
 vector<double> connect_rate;
 vector< vector<double> > results_ctmb;
@@ -25,15 +25,28 @@ long max_iterations;
 int DEBUG = 1;
 int POLICY = 0;
 int DISTRIBUTION = 0;
+
+// ################# For random number generation using the GNU Scientific Library
 const gsl_rng_type *T;
 gsl_rng *r;
 gsl_ran_discrete_t *g;
 
-void initialize_rndg()
+void initialize_random_gen(unsigned long s)
 {
-  srand(time(NULL));
+  srand(s);
+  gsl_rng_set(r, s);
+  gsl_rng_env_setup();
+  T = gsl_rng_default;
+  r = gsl_rng_alloc (T);
 }
 
+void cleanup_random_gen()
+{
+  gsl_ran_discrete_free (g);
+  gsl_rng_free (r); 
+}
+
+// ################# Output routines
 template <class T>
 void print_vector(vector<T> v, string s)
 {
@@ -68,7 +81,7 @@ void print_vector_noeol(vector<T> v, string s)
 }
 
 template <class T>
-void print_cumtime_maxbuffer(vector<T> v)
+void print_cumulativetime_at_queuelength(vector<T> v)
 {
   unsigned int i,j;
   for (i = 0; i < v.size(); i++){
@@ -78,6 +91,7 @@ void print_cumtime_maxbuffer(vector<T> v)
   }
 }
 
+// ################# Parser for reading the configuration file
 inline void rd_line_to_str(istringstream &iss, ifstream &ifile, string &line)
 {
   getline(ifile, line);
@@ -125,6 +139,7 @@ void input_file_parser(char *file_name)
   }
 }
 
+// ################# Schedulers
 int weighted_longest_connected_queue(vector<int> q, vector<int> c, int m, int slots_in_service)
 {
   int lcq = 0, lcqi = m, tq = 0;
@@ -198,42 +213,61 @@ int exprule(vector<int> q, vector<int> c, int m)
   return lcqi;
 }
 
-int sample_binomial(double p, unsigned int n)
+// ################# Parameters for different distributions are collected in a single structure
+struct DistributionParameter {
+  double p;
+  unsigned long n;
+  vector<double> P;
+  double lambda;
+};
+
+DistributionParameter arrival_parameter;
+DistributionParameter connection_parameter;
+
+// ################# IID samplers for obtaining the random number of arrivals in each slot
+int sample_binomial(DistributionParameter parameter)
 {
+  double p = parameter.p;
+  unsigned long n = parameter.n;
   int k = gsl_ran_binomial(r,p,n);
   return k;  
 }
 
-int sample_general_discrete(size_t K, const double * P)
+int sample_general_discrete(DistributionParameter parameter)
 {
-  g = gsl_ran_discrete_preproc (K,P);
+  vector<double> P = parameter.P;
+  size_t K = P.size();
+  g = gsl_ran_discrete_preproc (K,P); // see if this is ok!
   size_t d = gsl_ran_discrete (r,g);  
   return d;
 }
 
-void sample_bernoulli( vector<double> a, vector<int> *b, int m)
+void sample_bernoulli(DistributionParameter parameter)
 {
+  double p = parameter.p;
   double sample = SAMPLE_UNIFORM_01;
-  if (sample < a[m]) {
-    (*b)[m] = 1;
+  if (sample < p) {
+    return parameter.n;
   } else {
-    (*b)[m] = 0;
+    return 0;
   }
 }
 
-unsigned int sample_truncated_poisson(unsigned int n, double mu)
+unsigned int sample_truncated_poisson(DistributionParameter parameter)
 {
-  double Q[n];
-  // double P =  gsl_cdf_poisson_P(n,mu);
-  for(unsigned int i=0;i<n;i++){
-    Q[i] = gsl_ran_poisson_pdf(i,mu); //poisson pmf
-  }
-   
-  return sample_general_discrete(n,Q); // n is total number of discrete events
+  unsigned int n = parameter.n;
+  double lambda = parameter.lambda;
+  double *Q = new double[n];
+  for(unsigned int i = 0; i < n; i++){
+    Q[i] = gsl_ran_poisson_pdf(i,lambda); //poisson pmf
+  }   
+  return sample_general_discrete( n, Q);
 }
 
-unsigned int sample_heavy_tailed_discrete(unsigned int n,double alpha)
+unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
 {
+  unsigned int n = parameter.n;
+  double alpha = parameter.alpha;
   double Q[n];
   if(alpha<1)
     return -1;
@@ -246,122 +280,118 @@ unsigned int sample_heavy_tailed_discrete(unsigned int n,double alpha)
   return sample_general_discrete(n,Q);
 }
 
-vector<double> simulation()
+// ################# Structure to organize the results
+struct Results {
+  vector<double> fraction_lost_arrivals;
+  vector<double> average_queue_length;
+  vector< vector<double> > queue_length_distribution;
+};
+
+Results simulation_result;
+
+// ################# The simulation loop
+void simulation()
 {
   int m = 0; // we are initializing the queue served in the last slot to zero
-  vector<int> q(num_queues, 0); // we are initializing all queues to zero
-  vector<int> lost_arrivals(num_queues, 0), total_arrivals(num_queues, 0), total_qlen(num_queues,0);
-  vector<vector<int> > cumtime_maxbuffer(num_queues, vector<int>(max_buffer+1, 0));
-  vector< vector<double> > results_ctmb; 
-  vector<double> temp;
-  vector<int> curr_arr(num_queues, 0);
-  vector<int> curr_conn(num_queues, 0), curr_a(num_queues, 0);
-  vector<int> curr_ser(num_queues, 0);
-  // temp.reserve(51);
-  // double sample;
-  int lcqi;
-  vector<double> results;
-  int slots_in_service = 0;
-  double p = 0.7; 
-  unsigned long s = 0; //seed
-  unsigned int N = 10; //number of outcomes
-  double P[5] = {0.5,0.45,0.85,0.9,0.1}; //discrete events
-  double mu = 2, alpha = 1.2;
+  vector<int> q(num_queues, 0); // we are initializing all queues to zero; this holds the current queue length
+  vector<int> cumulative_arrivals(num_queues, 0); // this holds the total number of arrivals to the queues
+  vector<int> lost_arrivals(num_queues, 0); // this holds the arrivals which are lost from the system due to lack of buffer space
+  vector<int> cumulative_queuelength(num_queues,0); // this holds the cumulative queue length  
+  vector< vector<int> > cumulativetime_at_queuelength(num_queues, vector<int>(max_buffer+1, 0)); // this holds the cumulative time spent by each queue at each queue length *** 
+  vector<double> temp(num_queues, 0);
+
+  vector<int> current_arrival(num_queues, 0);
+  vector<int> current_connection(num_queues, 0), curr_a(num_queues, 0);
+  vector<int> current_service(num_queues, 0);
   
-  gsl_rng_set (r,s);
+  unsigned int served_queue_index;
+
+  int slots_in_service = 0;
   
   for (long i = 0; i < max_iterations; i ++) {    
     // sample arrivals and connectivity for each queue
     for (int qi = 0; qi < num_queues; qi ++) {
 
       if (DISTRIBUTION == 1) {
-	curr_arr[qi] = sample_binomial(p,N);
+	current_arrival[qi] = sample_binomial(arrival_parameter);
       } else if (DISTRIBUTION == 2) {
-	curr_arr[qi] = sample_truncated_poisson(N,mu);
+	current_arrival[qi] = sample_truncated_poisson(arrival_parameter);
       } else if (DISTRIBUTION == 3) {
-	curr_arr[qi] = sample_general_discrete(N,P);
+	current_arrival[qi] = sample_general_discrete(arrival_parameter);
       } else if (DISTRIBUTION == 4) {
-	sample_bernoulli(arrival_prob,&curr_a,qi);
-	curr_arr[qi] = curr_a[qi] * arrival_batch_size[qi];
+	current_arrival[qi] = sample_bernoulli(arrival_parameter);
       } else if (DISTRIBUTION == 5) {
-	curr_arr[qi] = sample_heavy_tailed_discrete(N,alpha);
+	current_arrival[qi] = sample_heavy_tailed_discrete(arrival_parameter);
       }
-      sample_bernoulli(connect_rate,&curr_conn,qi);
+      current_connection[qi] = sample_bernoulli(connection_parameter);
     }
 
     if (POLICY == 1) {
-      lcqi = longest_connected_queue(q, curr_conn, m);
+      served_queue_index = longest_connected_queue(q, current_connection, m);
     } else if (POLICY == 2) {
-      lcqi = exhaustive_service(q, curr_conn, m);
+      served_queue_index = exhaustive_service(q, current_connection, m);
     } else if (POLICY == 3) {
-      lcqi = longest_queue(q, curr_conn, m);
+      served_queue_index = longest_queue(q, current_connection, m);
     } else if (POLICY == 4) {
-      lcqi = weighted_longest_connected_queue(q, curr_conn, m, slots_in_service);
+      served_queue_index = weighted_longest_connected_queue(q, current_connection, m, slots_in_service);
     } else if (POLICY == 5) {
-      lcqi = exprule(q, curr_conn, m);
+      served_queue_index = exprule(q, current_connection, m);
     }
 
-    if (m == lcqi)
+    if (m == served_queue_index)
       slots_in_service ++;
     else
       slots_in_service = 0;
     
-    curr_ser[m] = 0;
-    curr_ser[lcqi] = 1;
+    current_service[m] = 0;
+    current_service[served_queue_index] = 1;
 
     if (DEBUG) {
       cout << i << " - " << "M: " << m << " ";
       print_vector_noeol(q, "Q");
       print_vector_noeol(curr_a, "A");
-      print_vector_noeol(curr_conn, "C");
-      print_vector_noeol(curr_ser, "S");
+      print_vector_noeol(current_connection, "C");
+      print_vector_noeol(current_service, "S");
     }
 
     for (int qi = 0; qi < num_queues; qi ++) {
-      //total_arrivals[qi] += curr_a[qi] * arrival_batch_size[qi];
-      total_arrivals[qi] += curr_arr[qi];
+      cumulative_arrivals[qi] += current_arrival[qi];
 
       for(int j = 0; j <= max_buffer; j++)
-	cumtime_maxbuffer[qi][j] += (q[qi] == j);
+	cumulativetime_at_queuelength[qi][j] += (q[qi] == j);
       
-      curr_ser[qi] = curr_conn[qi] * (m == qi) * curr_ser[qi]; // modifications due to connectivity
-      lost_arrivals[qi] += MAX(MAX(q[qi] - curr_ser[qi], 0) + curr_arr[qi] - max_buffer,0);
-      q[qi] = MIN( MAX(q[qi] - curr_ser[qi], 0) + curr_arr[qi], max_buffer);
-      total_qlen[qi] += q[qi];
+      current_service[qi] = current_connection[qi] * (m == qi) * current_service[qi];
+      
+      lost_arrivals[qi] += MAX(MAX(q[qi] - current_service[qi], 0) + current_arrival[qi] - max_buffer,0);
+      
+      q[qi] = MIN( MAX(q[qi] - current_service[qi], 0) + current_arrival[qi], max_buffer);
+      
+      cumulative_queuelength[qi] += q[qi];
     }
 
-    m = lcqi;
+    m = served_queue_index;
 
     if (DEBUG) {
       print_vector_noeol(lost_arrivals, "LA");
-      print_2d_vector(cumtime_maxbuffer, "@B");
+      print_2d_vector(cumulativetime_at_queuelength, "@B");
     }
   }
+  
   for (int qi = 0; qi < num_queues; qi ++){
-    results.push_back( (double) lost_arrivals[qi] / (double) total_arrivals[qi]);
-    //results.push_back( (double) cumtime_maxbuffer[qi] / (double) max_iterations);
-    results.push_back( (double) total_qlen[qi] / (double) max_iterations);
+    simulation_results.fraction_lost_arrivals.push_back( (double) lost_arrivals[qi] / (double) cumulative_arrivals[qi]);
+    simulation_results.average_queue_length.push_back( (double) cumulative_queuelength[qi] / (double) max_iterations);
+    
+    for(int j = 0; j <= max_buffer; j++) {
+      temp[j] = (double) cumulativetime_at_queuelength[qi][j] / (double) max_iterations;
+    }
 
-    for(int j = 0; j <= max_buffer; j++)
-      temp.push_back( (double) cumtime_maxbuffer[qi][j] / (double) max_iterations);
-
-    results_ctmb.push_back(temp);
-    //  cout << results_ctmb.size() << endl;
-    //  cout << results_ctmb[qi].size() << endl;
-    temp.clear();  
+    simulation_results.queue_length_distribution.push_back(temp);
   }
-  int j;
-  for(j = 0;j< max_buffer;j++)
-    cout << j << ",";
-  cout << j << endl;
-  print_cumtime_maxbuffer(results_ctmb);
-  return results;
 }
 
+// Main function for setup of arguments
 int main(int argc, char *argv[])
 {
-  vector<double> results;
-
   if (argc != 12) {
     cout << "Usage: ./simulation_iid_ac_2q <buffersize> <batchsize queue 1> <batchsize queue 2> <arrival prob 1> <arrival prob 2> <conn. prob 1> <conn. prob 2> <iterations> <debug> <policy> <distribution>" << endl;
     return -1;
@@ -379,18 +409,14 @@ int main(int argc, char *argv[])
   POLICY = atoi(argv[10]);
   DISTRIBUTION = atoi(argv[11]);
   
-  initialize_rndg();
-  gsl_rng_env_setup();
-  T = gsl_rng_default;
-  r = gsl_rng_alloc (T);
+  initialize_random_gen(time(NULL));
   
   results = simulation();
 
   //  cout << max_buffer << "," << arrival_batch_size[0] << "," << arrival_batch_size[1] << "," << arrival_prob[0] * arrival_batch_size[0] << "," << arrival_prob[1] * arrival_batch_size[1] << "," << connect_rate[0] << "," << connect_rate[1] << "," << results[0] << "," << results[2] << "," << results[1] << "," << results[3] << endl;
 
   // cout << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
-  
-  gsl_ran_discrete_free (g);
-  gsl_rng_free (r); 
+
+  cleanup_random_gen();
   return 0;
 }
