@@ -53,19 +53,17 @@ vector<DistributionParameter> connection_parameter;
 // ################# For random number generation using the GNU Scientific Library
 const gsl_rng_type *T;
 gsl_rng *r;
-gsl_ran_discrete_t *g;
 
 void initialize_random_gen(unsigned long s)
 {
-  gsl_rng_set(r, s);
   gsl_rng_env_setup();
   T = gsl_rng_default;
   r = gsl_rng_alloc (T);
+  gsl_rng_set(r, s);
 }
 
 void cleanup_random_gen()
 {
-  gsl_ran_discrete_free (g);
   gsl_rng_free (r); 
 }
 
@@ -440,9 +438,9 @@ int main(int argc, char *argv[])
   debug = atoi(argv[ IND_DEBUG ]);
   policy = atoi(argv[ IND_POLICY ]);
   distribution = atoi(argv[ IND_DISTRIBUTION ]);
-
   DistributionParameter arrival_temp;
   DistributionParameter connection_temp;
+
 
   for (unsigned int q = 0; q < num_queues; q ++) {
     arrival_temp.p = atof(argv[ IND_FIXEDPARAMETERS_END + q * NUM_PARAMS_PERQUEUE + INDOFFSET_ARRIVAL_p ]);
@@ -457,7 +455,7 @@ int main(int argc, char *argv[])
   }
 
   initialize_random_gen(seed);
-  
+  	
   simulation();
   
   cleanup_random_gen();  
