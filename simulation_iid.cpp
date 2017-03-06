@@ -69,6 +69,15 @@ void cleanup_random_gen()
   gsl_rng_free (r); 
 }
 
+// ################# Useful vector operations
+template <class T>
+vector<T> multiply_vector(vector<T> v, double n)
+{
+  for (unsigned int i = 0; i < v.size(); i ++)
+    v[i] = v[i] * n;
+  return v;
+}
+
 // ################# Output routines
 template <class T>
 void print_vector(vector<T> v, string s)
@@ -231,6 +240,9 @@ unsigned int sample_truncated_poisson(DistributionParameter parameter)
     Q[i] = gsl_ran_poisson_pdf(i,lambda); //poisson pmf
     total_probability += Q[i];
   }
+
+  Q = multiply_vector(Q, 1.0/total_probability);
+
   DistributionParameter temp;
   temp.n = n;
   temp.lambda = 0;
@@ -239,21 +251,33 @@ unsigned int sample_truncated_poisson(DistributionParameter parameter)
   return sample_general_discrete(temp);
 }
 
-// unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
-// {
-//   unsigned int n = parameter.n;
-//   double alpha = parameter.lambda;
-//   double Q[n];
-//   if ( alpha < 1)
-//     return -1;
-//   else
-//     alpha = (-1)*alpha;
-//   for(unsigned int i=0; i < n; i++) { // this implementation is wrong
-//     double x = (double)(rand() % 10 ) + 1;
-//     Q[i] = pow(x,alpha);
-//   }
-//   return sample_general_discrete(n,Q);
-// }
+unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
+{
+  unsigned int n = parameter.n;
+  double alpha = parameter.lambda;
+  double total_probability = 0;
+  
+  vector<double> Q(n, 0);
+  
+  if ( alpha < 1)
+    return -1;
+  else
+    alpha = (-1)*alpha;
+  
+  for( unsigned int i=0; i < n; i++) {
+    Q[i] = pow(i, alpha);
+    total_probability += Q[i];
+  }
+
+  Q = multiply_vector(Q, 1.0/total_probability);
+
+  DistributionParameter temp;
+  temp.n = n;
+  temp.lambda = 0;
+  temp.p = 0;
+  temp.P = Q;
+  return sample_general_discrete(temp);  
+}
 
 // ################# Structure to organize the results
 struct Results {
