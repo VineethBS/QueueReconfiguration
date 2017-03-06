@@ -190,23 +190,29 @@ int exprule(vector<int> q, vector<int> c, int m)
 
 
 // ################# IID samplers for obtaining the random number of arrivals in each slot
-int sample_binomial(DistributionParameter parameter)
+unsigned int sample_binomial(DistributionParameter parameter)
 {
   double p = parameter.p;
   unsigned long n = parameter.n;
   return gsl_ran_binomial(r,p,n);  
 }
 
-// int sample_general_discrete(DistributionParameter parameter)
-// {
-//   vector<double> P = parameter.P;
-//   size_t K = P.size();
-//   g = gsl_ran_discrete_preproc (K,P); // see if this is ok!
-//   size_t d = gsl_ran_discrete (r,g);  
-//   return d;
-// }
+unsigned int sample_general_discrete(DistributionParameter parameter)
+{
+  vector<double> P = parameter.P;
+  // convert P to a cumulative DF
+  for (unsigned int i = 1; i < P.size(); i ++) {
+    P[i] = P[i] + P[i - 1];
+  }
+  double uniform01_sample = gsl_ran_flat(r, 0, 1);
+  for (unsigned int i = 0; i < P.size(); i ++) {
+    if (uniform01_sample <= P[i])
+      break;
+  }
+  return i;
+}
 
-int sample_bernoulli(DistributionParameter parameter)
+unsigned int sample_bernoulli(DistributionParameter parameter)
 {
   double p = parameter.p;
   return gsl_ran_binomial(r,p,1);
