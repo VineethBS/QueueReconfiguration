@@ -199,13 +199,14 @@ unsigned int sample_binomial(DistributionParameter parameter)
 
 unsigned int sample_general_discrete(DistributionParameter parameter)
 {
+  unsigned int i;
   vector<double> P = parameter.P;
   // convert P to a cumulative DF
-  for (unsigned int i = 1; i < P.size(); i ++) {
+  for (i = 1; i < P.size(); i ++) {
     P[i] = P[i] + P[i - 1];
   }
   double uniform01_sample = gsl_ran_flat(r, 0, 1);
-  for (unsigned int i = 0; i < P.size(); i ++) {
+  for (i = 0; i < P.size(); i ++) {
     if (uniform01_sample <= P[i])
       break;
   }
@@ -218,21 +219,25 @@ unsigned int sample_bernoulli(DistributionParameter parameter)
   return gsl_ran_binomial(r,p,1);
 }
 
-// unsigned int sample_truncated_poisson(DistributionParameter parameter)
-// {
-//   unsigned int n = parameter.n;
-//   double lambda = parameter.lambda;
-//   double *Q = new double[n];
-//   for(unsigned int i = 0; i < n; i++){
-//     Q[i] = gsl_ran_poisson_pdf(i,lambda); //poisson pmf
-//   }
-//   DistributionParameter temp;
-//   temp.n = n;
-//   temp.lambda = 0;
-//   temp.p = 0;
-//   temp.P = Q;
-//   return sample_general_discrete(temp);
-// }
+unsigned int sample_truncated_poisson(DistributionParameter parameter)
+{
+  // TODO: Optimize this code so that the distribution is only found once
+  unsigned int n = parameter.n;
+  double lambda = parameter.lambda;
+  vector<double> Q(n, 0);
+  double total_probability = 0;
+  
+  for(unsigned int i = 0; i < n; i++){
+    Q[i] = gsl_ran_poisson_pdf(i,lambda); //poisson pmf
+    total_probability += Q[i];
+  }
+  DistributionParameter temp;
+  temp.n = n;
+  temp.lambda = 0;
+  temp.p = 0;
+  temp.P = Q;
+  return sample_general_discrete(temp);
+}
 
 // unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
 // {
