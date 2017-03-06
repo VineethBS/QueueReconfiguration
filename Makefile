@@ -1,2 +1,2 @@
 default:
-	g++ -o simulation_iid simulation_iid.cpp -lm -lgsl -lgslcblas
+	g++ -o simulation_iid simulation_iid.cpp -lm -lgsl -lgslcblas -Wall
