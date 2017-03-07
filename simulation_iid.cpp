@@ -385,7 +385,7 @@ void simulation()
     current_service[m] = 0;
     current_service[served_queue_index] = 1;
 
-    if (debug) {
+    if (debug >= 1) {
       cout << i << " - " << "M: " << m << " ";
       print_vector_noeol(q, "Q");
       print_vector_noeol(curr_a, "A");
@@ -410,7 +410,7 @@ void simulation()
 
     m = served_queue_index;
 
-    if (debug) {
+    if (debug >= 2) {
       print_vector_noeol(lost_arrivals, "LA");
       print_2d_vector(cumulativetime_at_queuelength, "@B");
     }
@@ -454,6 +454,17 @@ int main(int argc, char *argv[])
     connection_parameter.push_back(connection_temp);
   }
 
+  // Debug the inputs
+  if (debug >= 1) {
+    cout << "Inputs read from the command line are: " << endl;
+    cout << "Seed " << seed << endl;
+    cout << "Max buffer size " << max_buffer << endl;
+    cout << "Number of queues " << num_queues << endl;
+    cout << "Max Iterations " << max_iterations << endl;
+    cout << "Policy " << policy << endl;
+    cout << "Distribution " << distribution << endl;
+  }
+  
   initialize_random_gen(seed);
   	
   simulation();
