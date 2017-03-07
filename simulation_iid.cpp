@@ -456,13 +456,19 @@ int main(int argc, char *argv[])
 
   // Debug the inputs
   if (debug >= 1) {
-    cout << "Inputs read from the command line are: " << endl;
+    cout << "#### Inputs read from the command line are #### " << endl;
     cout << "Seed " << seed << endl;
     cout << "Max buffer size " << max_buffer << endl;
     cout << "Number of queues " << num_queues << endl;
     cout << "Max Iterations " << max_iterations << endl;
     cout << "Policy " << policy << endl;
     cout << "Distribution " << distribution << endl;
+
+    for (unsigned int q = 0; q < num_queues; q ++) {
+      cout << "Queue 1 | Arrival.p " << arrival_parameter[q].p << " | Arrival.n " << arrival_parameter[q].n << " | Arrival L " << arrival_parameter[q].lambda << " | Connection p " << connection_parameter[q].p << endl;
+    }
+    cout << "#### End of Inputs #### " << endl;
+    
   }
   
   initialize_random_gen(seed);
