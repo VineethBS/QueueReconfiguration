@@ -23,7 +23,8 @@ using namespace std;
 #define IND_DEBUG 5
 #define IND_POLICY 6
 #define IND_DISTRIBUTION 7
-#define IND_FIXEDPARAMETERS_END 8
+#define IND_OUTPUTTYPE 8
+#define IND_FIXEDPARAMETERS_END 9
 #define NUM_PARAMS_PERQUEUE 4
 #define INDOFFSET_ARRIVAL_p 0
 #define INDOFFSET_ARRIVAL_n 1
@@ -38,6 +39,7 @@ int num_queues;
 int debug = 0;
 int policy = 0;
 int distribution = 0;
+int output_type = 0;
 
 // ################# Parameters for different distributions are collected in a single structure
 struct DistributionParameter {
@@ -316,6 +318,32 @@ struct Results {
 
 Results simulation_results;
 
+// ################# Function to print the results
+// output_type decides what should be printed, if it is 1 or 2 then a header row should be printed
+// if it is 3 or 4 then header row is not printed, if it is 4 then queue length distribution should be printed
+void print_results(int output_type)
+{
+  if ((output_type == 1) || (output_type == 2)) {
+    cout << "Seed,MaxBufferSize,NumQueues,MaxIterations,Policy,Distribution";
+    for ( int q = 0; q < num_queues; q ++) {
+      cout << ",Queue_" << q << "_Arrivalp,Queue_" << q << "_Arrivaln,Queue_" << q << "Arrival_L,Queue_" << q <<"_Connectionp";
+    }
+    for ( int q = 0; q < num_queues; q ++) {
+      cout << ",Queue_" << q << "_FractionLostArrivals,Queue_" << q << "_AverageQueueLength";
+    }
+    cout << endl;
+  } else {
+    cout << seed << "," << max_buffer << "," << num_queues << "," << max_iterations << "," << policy << "," << distribution;
+    for ( int q = 0; q < num_queues; q ++) {
+      cout << arrival_parameter[q].p << "," << arrival_parameter[q].n << "," << arrival_parameter[q].lambda << "," << connection_parameter[q].p;
+    }
+    for ( int q = 0; q < num_queues; q ++) {
+      cout << simulation_results.fraction_lost_arrivals[q] << "," << simulation_results.average_queue_length[q];
+    }
+    cout << endl;
+  }
+}
+
 // ################# The simulation loop
 void simulation()
 {
@@ -444,6 +472,7 @@ int main(int argc, char *argv[])
   debug = atoi(argv[ IND_DEBUG ]);
   policy = atoi(argv[ IND_POLICY ]);
   distribution = atoi(argv[ IND_DISTRIBUTION ]);
+  output_type = atoi(argv[ IND_OUTPUTTYPE ]);
   DistributionParameter arrival_temp;
   DistributionParameter connection_temp;
 
@@ -479,6 +508,7 @@ int main(int argc, char *argv[])
   
   initialize_random_gen(seed);  	
   simulation();
+  print_results();
   cleanup_random_gen();  
 
   return 0;
