@@ -32,17 +32,17 @@ using namespace std;
 
 // ################# Parameters for the simulation
 int seed;
-unsigned long max_buffer;
-unsigned long max_iterations;
-unsigned int num_queues;
-unsigned int debug = 0;
-unsigned int policy = 0;
-unsigned int distribution = 0;
+long max_buffer;
+long max_iterations;
+int num_queues;
+int debug = 0;
+int policy = 0;
+int distribution = 0;
 
 // ################# Parameters for different distributions are collected in a single structure
 struct DistributionParameter {
   double p;
-  unsigned long n;
+  long n;
   vector<double> P;
   double lambda;
 };
@@ -54,7 +54,7 @@ vector<DistributionParameter> connection_parameter;
 const gsl_rng_type *T;
 gsl_rng *r;
 
-void initialize_random_gen(unsigned long s)
+void initialize_random_gen( long s)
 {
   gsl_rng_env_setup();
   T = gsl_rng_default;
@@ -113,7 +113,7 @@ void print_vector_noeol(vector<T> v, string s)
 template <class T>
 void print_cumulativetime_at_queuelength(vector<T> v)
 {
-  unsigned int i,j;
+  int i,j;
   for (i = 0; i < v.size(); i++){
     for(j = 0; j < v[i].size(); j++)
       cout << v[i][j] << ",";
@@ -122,13 +122,13 @@ void print_cumulativetime_at_queuelength(vector<T> v)
 }
 
 // ################# Schedulers
-unsigned int weighted_longest_connected_queue(vector<unsigned long> q, vector<unsigned long> c, unsigned int m, unsigned int slots_in_service)
+int weighted_longest_connected_queue(vector< long> q, vector< long> c,  int m,  int slots_in_service)
 {
-  unsigned long lcq = 0;
-  unsigned int lcqi = m;
-  unsigned int tq = 0;
+  long lcq = 0;
+  int lcqi = m;
+  int tq = 0;
   
-  for (unsigned int qi = 0; qi < num_queues; qi ++) {
+  for ( int qi = 0; qi < num_queues; qi ++) {
     if (c[qi] > 0) {
       if (m == qi) {
 	tq += slots_in_service;
@@ -142,12 +142,12 @@ unsigned int weighted_longest_connected_queue(vector<unsigned long> q, vector<un
   return lcqi;
 }
 
-unsigned int longest_queue(vector<unsigned long> q, vector<unsigned long> c, unsigned int m)
+int longest_queue(vector< long> q, vector< long> c,  int m)
 {
-  unsigned long lq = 0;
-  unsigned int lqi = m;
+  long lq = 0;
+  int lqi = m;
   
-  for (unsigned int qi = 0; qi < num_queues; qi ++) {
+  for ( int qi = 0; qi < num_queues; qi ++) {
     if (q[qi] > lq) {
       lq = q[qi];
       lqi = qi;
@@ -156,11 +156,11 @@ unsigned int longest_queue(vector<unsigned long> q, vector<unsigned long> c, uns
   return lqi;
 }  
 
-unsigned int longest_connected_queue(vector<unsigned long> q, vector<unsigned long> c, unsigned int m)
+int longest_connected_queue(vector< long> q, vector< long> c,  int m)
 {
-  unsigned long lcq = 0;
-  unsigned int lcqi = m;
-  for (unsigned int qi = 0; qi < num_queues; qi ++) {
+  long lcq = 0;
+  int lcqi = m;
+  for ( int qi = 0; qi < num_queues; qi ++) {
     if (c[qi] > 0) {
       if (q[qi] > lcq) {
 	lcq = q[qi];
@@ -171,9 +171,9 @@ unsigned int longest_connected_queue(vector<unsigned long> q, vector<unsigned lo
   return lcqi;
 }
 
-unsigned int exhaustive_service(vector<unsigned long> q, vector<unsigned long> c, unsigned int m)
+int exhaustive_service(vector< long> q, vector< long> c,  int m)
 {
-  unsigned int server_index;
+  int server_index;
   if (q[m] > 0) {
     server_index = m;
   } else {
@@ -182,18 +182,18 @@ unsigned int exhaustive_service(vector<unsigned long> q, vector<unsigned long> c
   return server_index;
 }
 
-unsigned int exprule(vector<unsigned long> q, vector<unsigned long> c, unsigned int m)
+int exprule(vector< long> q, vector< long> c,  int m)
 {
   double metric = 0;
-  unsigned int server_index = m;
-  unsigned long sumq = 0;
-  for (unsigned int qi = 0; qi < num_queues; qi ++)
+  int server_index = m;
+  long sumq = 0;
+  for ( int qi = 0; qi < num_queues; qi ++)
     sumq += q[qi];
 
   sumq = (double) sumq / (double) num_queues;
   metric = exp((double) q[0] / (1.0 + sqrt((double) sumq)));
 
-  for (unsigned int qi =0; qi < num_queues; qi ++) {
+  for ( int qi =0; qi < num_queues; qi ++) {
     if (exp((double) q[qi] / (1.0 + sqrt((double) sumq))) > metric) {
       metric = exp((double) q[qi] / (1.0 + sqrt((double) sumq)));
       server_index = qi;
@@ -202,12 +202,12 @@ unsigned int exprule(vector<unsigned long> q, vector<unsigned long> c, unsigned 
   return server_index;
 }
 
-unsigned int VFMW(vector<unsigned long> q, unsigned int m)
+int VFMW(vector< long> q,  int m)
 {
   double metric = 0;
-  unsigned int server_index = m;
+  int server_index = m;
   
-  for (unsigned int qi = 0; qi < num_queues; qi ++) { 
+  for ( int qi = 0; qi < num_queues; qi ++) { 
     if (q[qi] * connection_parameter[qi].p > metric) {
       metric = q[qi] * connection_parameter[qi].p;
       server_index = qi;
@@ -216,25 +216,25 @@ unsigned int VFMW(vector<unsigned long> q, unsigned int m)
   return server_index;
 }
 
-unsigned long frame_length_VFMW(vector<unsigned long> q)
+long frame_length_VFMW(vector< long> q)
 {
-  unsigned int total_queue_length = 0;
+  int total_queue_length = 0;
   for (unsigned int i = 0; i < q.size(); i ++)
     total_queue_length += q[i];
-  unsigned long frame_length = (unsigned long) (1 + sqrt((double) total_queue_length));
+  long frame_length = ( long) (1 + sqrt((double) total_queue_length));
   return frame_length;
 }
 
 				
 // ################# IID samplers for obtaining the random number of arrivals in each slot
-unsigned int sample_binomial(DistributionParameter parameter)
+int sample_binomial(DistributionParameter parameter)
 {
   double p = parameter.p;
-  unsigned long n = parameter.n;
+  long n = parameter.n;
   return gsl_ran_binomial(r,p,n);  
 }
 
-unsigned int sample_general_discrete(DistributionParameter parameter)
+int sample_general_discrete(DistributionParameter parameter)
 {
   unsigned int i;
   vector<double> P = parameter.P;
@@ -250,21 +250,21 @@ unsigned int sample_general_discrete(DistributionParameter parameter)
   return i;
 }
 
-unsigned int sample_bernoulli(DistributionParameter parameter)
+int sample_bernoulli(DistributionParameter parameter)
 {
   double p = parameter.p;
   return gsl_ran_binomial(r,p,1);
 }
 
-unsigned int sample_truncated_poisson(DistributionParameter parameter)
+int sample_truncated_poisson(DistributionParameter parameter)
 {
   // TODO: Optimize this code so that the distribution is only found once
-  unsigned int n = parameter.n;
+  int n = parameter.n;
   double lambda = parameter.lambda;
   vector<double> Q(n, 0);
   double total_probability = 0;
   
-  for(unsigned int i = 0; i < n; i++){
+  for( int i = 0; i < n; i++){
     Q[i] = gsl_ran_poisson_pdf(i,lambda); //poisson pmf
     total_probability += Q[i];
   }
@@ -279,9 +279,9 @@ unsigned int sample_truncated_poisson(DistributionParameter parameter)
   return sample_general_discrete(temp);
 }
 
-unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
+int sample_heavy_tailed_discrete(DistributionParameter parameter)
 {
-  unsigned int n = parameter.n;
+  int n = parameter.n;
   double alpha = parameter.lambda;
   double total_probability = 0;
   
@@ -292,7 +292,7 @@ unsigned int sample_heavy_tailed_discrete(DistributionParameter parameter)
   else
     alpha = (-1)*alpha;
   
-  for( unsigned int i=0; i < n; i++) {
+  for(  int i=0; i < n; i++) {
     Q[i] = pow(i, alpha);
     total_probability += Q[i];
   }
@@ -319,28 +319,32 @@ Results simulation_results;
 // ################# The simulation loop
 void simulation()
 {
-  unsigned int m = 0; // we are initializing the queue served in the last slot to zero
-  vector<unsigned long> q(num_queues, 0); // we are initializing all queues to zero; this holds the current queue length
-  vector<unsigned long> cumulative_arrivals(num_queues, 0); // this holds the total number of arrivals to the queues
-  vector<unsigned long> lost_arrivals(num_queues, 0); // this holds the arrivals which are lost from the system due to lack of buffer space
-  vector<unsigned long> cumulative_queuelength(num_queues,0); // this holds the cumulative queue length  
-  vector< vector<unsigned long> > cumulativetime_at_queuelength(num_queues, vector<unsigned long>(max_buffer+1, 0)); // this holds the cumulative time spent by each queue at each queue length *** 
-  vector<double> temp(num_queues, 0);
-
-  vector<unsigned long> current_arrival(num_queues, 0);
-  vector<unsigned long> current_connection(num_queues, 0), curr_a(num_queues, 0);
-  vector<unsigned long> current_service(num_queues, 0);
+  if (debug >= 1) {
+    cout << "#### Start of Simulation ####" << endl;
+  }
   
-  unsigned long served_queue_index;
+  int m = 0; // we are initializing the queue served in the last slot to zero
+  vector<long> q(num_queues, 0); // we are initializing all queues to zero; this holds the current queue length
+  vector<long> cumulative_arrivals(num_queues, 0); // this holds the total number of arrivals to the queues
+  vector<long> lost_arrivals(num_queues, 0); // this holds the arrivals which are lost from the system due to lack of buffer space
+  vector<long> cumulative_queuelength(num_queues,0); // this holds the cumulative queue length  
+  vector< vector<long> > cumulativetime_at_queuelength(num_queues, vector<long>(max_buffer + 1, 0)); // this holds the cumulative time spent by each queue at each queue length
+  vector<double> temp(max_buffer + 1, 0);
 
-  unsigned long slots_in_service = 0;
+  vector<long> current_arrival(num_queues, 0);
+  vector<long> current_connection(num_queues, 0), curr_a(num_queues, 0);
+  vector<long> current_service(num_queues, 0);
   
-  unsigned long frame_length = 0;
-  unsigned long frame_boundary = frame_length;
-  
-  for (unsigned long i = 0; i < max_iterations; i ++) {    
+  long served_queue_index;
 
-    for (unsigned int qi = 0; qi < num_queues; qi ++) {
+  long slots_in_service = 0;
+  
+  long frame_length = 0;
+  long frame_boundary = frame_length;
+  
+  for ( long i = 0; i < max_iterations; i ++) {    
+
+    for ( int qi = 0; qi < num_queues; qi ++) {
       // sample arrivals for each queue according to specified distribution
       if (distribution == 1) {
 	current_arrival[qi] = sample_binomial(arrival_parameter[qi]);
@@ -386,16 +390,16 @@ void simulation()
     if (debug >= 1) {
       cout << i << " - " << "M: " << m << " ";
       print_vector_noeol(q, "Q");
-      print_vector_noeol(curr_a, "A");
+      print_vector_noeol(current_arrival, "A");
       print_vector_noeol(current_connection, "C");
       print_vector(current_service, "S");
     }
 
-    for (unsigned int qi =0; qi < num_queues; qi ++) {
+    for (int qi = 0; qi < num_queues; qi ++) {
       cumulative_arrivals[qi] += current_arrival[qi];
 
-      for(unsigned long j = 0; j <= max_buffer; j++)
-	cumulativetime_at_queuelength[qi][j] += (q[qi] == j);
+      for(long j = 0; j <= max_buffer; j++)
+       	cumulativetime_at_queuelength[qi][j] += (q[qi] == j);
       
       current_service[qi] = current_connection[qi] * (m == qi) * current_service[qi];
       
@@ -414,15 +418,19 @@ void simulation()
     }
   }
   
-  for (unsigned int qi = 0; qi < num_queues; qi ++){
+  for ( int qi = 0; qi < num_queues; qi ++){
     simulation_results.fraction_lost_arrivals.push_back( (double) lost_arrivals[qi] / (double) cumulative_arrivals[qi]);
     simulation_results.average_queue_length.push_back( (double) cumulative_queuelength[qi] / (double) max_iterations);
     
-    for(unsigned long j = 0; j <= max_buffer; j++) {
+    for( long j = 0; j <= max_buffer; j++) {
       temp[j] = (double) cumulativetime_at_queuelength[qi][j] / (double) max_iterations;
     }
 
     simulation_results.queue_length_distribution.push_back(temp);
+  }
+
+  if (debug >= 1) {
+    cout << "#### End of Simulation ####" << endl;
   }
 }
 
@@ -440,7 +448,7 @@ int main(int argc, char *argv[])
   DistributionParameter connection_temp;
 
 
-  for (unsigned int q = 0; q < num_queues; q ++) {
+  for ( int q = 0; q < num_queues; q ++) {
     arrival_temp.p = atof(argv[ IND_FIXEDPARAMETERS_END + q * NUM_PARAMS_PERQUEUE + INDOFFSET_ARRIVAL_p ]);
     arrival_temp.n = atoi(argv[ IND_FIXEDPARAMETERS_END + q * NUM_PARAMS_PERQUEUE + INDOFFSET_ARRIVAL_n ]);
     arrival_temp.lambda = atof(argv[ IND_FIXEDPARAMETERS_END + q * NUM_PARAMS_PERQUEUE + INDOFFSET_ARRIVAL_lambda ]);
@@ -462,17 +470,15 @@ int main(int argc, char *argv[])
     cout << "Policy " << policy << endl;
     cout << "Distribution " << distribution << endl;
 
-    for (unsigned int q = 0; q < num_queues; q ++) {
+    for ( int q = 0; q < num_queues; q ++) {
       cout << "Queue 1 | Arrival.p " << arrival_parameter[q].p << " | Arrival.n " << arrival_parameter[q].n << " | Arrival L " << arrival_parameter[q].lambda << " | Connection p " << connection_parameter[q].p << endl;
     }
     cout << "#### End of Inputs #### " << endl;
     
   }
   
-  initialize_random_gen(seed);
-  	
+  initialize_random_gen(seed);  	
   simulation();
-  
   cleanup_random_gen();  
 
   return 0;
