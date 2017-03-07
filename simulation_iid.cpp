@@ -339,23 +339,21 @@ void simulation()
   unsigned long frame_boundary = frame_length;
   
   for (unsigned long i = 0; i < max_iterations; i ++) {    
-    // sample arrivals and connectivity for each queue
-    for (unsigned int qi = 0; qi < num_queues; qi ++) {
 
+    for (unsigned int qi = 0; qi < num_queues; qi ++) {
+      // sample arrivals for each queue according to specified distribution
       if (distribution == 1) {
 	current_arrival[qi] = sample_binomial(arrival_parameter[qi]);
-      }
-      // else if (distribution == 2) {
-      // 	current_arrival[qi] = sample_truncated_poisson(arrival_parameter[qi]);
-      // } else if (distribution == 3) {
-      // 	current_arrival[qi] = sample_general_discrete(arrival_parameter[qi]);
-      // }
-      else if (distribution == 4) {
+      } else if (distribution == 2) {
+       	current_arrival[qi] = sample_truncated_poisson(arrival_parameter[qi]);
+      } else if (distribution == 3) {
+      	current_arrival[qi] = sample_general_discrete(arrival_parameter[qi]);
+      } else if (distribution == 4) {
 	current_arrival[qi] = sample_bernoulli(arrival_parameter[qi]);
+      } else if (distribution == 5) {
+      	current_arrival[qi] = sample_heavy_tailed_discrete(arrival_parameter[qi]);
       }
-      // else if (distribution == 5) {
-      // 	current_arrival[qi] = sample_heavy_tailed_discrete(arrival_parameter[qi]);
-      // }
+      // sample connectivity for each queue - connectivity is bernoulli
       current_connection[qi] = sample_bernoulli(connection_parameter[qi]);
     }
 
@@ -390,7 +388,7 @@ void simulation()
       print_vector_noeol(q, "Q");
       print_vector_noeol(curr_a, "A");
       print_vector_noeol(current_connection, "C");
-      print_vector_noeol(current_service, "S");
+      print_vector(current_service, "S");
     }
 
     for (unsigned int qi =0; qi < num_queues; qi ++) {
@@ -476,5 +474,6 @@ int main(int argc, char *argv[])
   simulation();
   
   cleanup_random_gen();  
+
   return 0;
 }
