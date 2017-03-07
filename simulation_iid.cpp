@@ -335,10 +335,10 @@ void print_results(int output_type)
   } else {
     cout << seed << "," << max_buffer << "," << num_queues << "," << max_iterations << "," << policy << "," << distribution;
     for ( int q = 0; q < num_queues; q ++) {
-      cout << arrival_parameter[q].p << "," << arrival_parameter[q].n << "," << arrival_parameter[q].lambda << "," << connection_parameter[q].p;
+      cout << "," << arrival_parameter[q].p << "," << arrival_parameter[q].n << "," << arrival_parameter[q].lambda << "," << connection_parameter[q].p;
     }
     for ( int q = 0; q < num_queues; q ++) {
-      cout << simulation_results.fraction_lost_arrivals[q] << "," << simulation_results.average_queue_length[q];
+      cout << "," << simulation_results.fraction_lost_arrivals[q] << "," << simulation_results.average_queue_length[q];
     }
     cout << endl;
   }
@@ -466,6 +466,9 @@ void simulation()
 int main(int argc, char *argv[])
 {
   seed = atoi(argv[ IND_SEED ]);
+  if (seed == -1)
+	  seed = time(NULL);
+
   max_buffer = atoi(argv[ IND_MAX_BUFFER ]);
   num_queues = atoi(argv[ IND_NUM_QUEUES ]);
   max_iterations = atoi(argv[ IND_MAX_ITERATIONS ]);
@@ -502,13 +505,12 @@ int main(int argc, char *argv[])
     for ( int q = 0; q < num_queues; q ++) {
       cout << "Queue 1 | Arrival.p " << arrival_parameter[q].p << " | Arrival.n " << arrival_parameter[q].n << " | Arrival L " << arrival_parameter[q].lambda << " | Connection p " << connection_parameter[q].p << endl;
     }
-    cout << "#### End of Inputs #### " << endl;
-    
+    cout << "#### End of Inputs #### " << endl;    
   }
   
   initialize_random_gen(seed);  	
   simulation();
-  print_results();
+  print_results(output_type);
   cleanup_random_gen();  
 
   return 0;
