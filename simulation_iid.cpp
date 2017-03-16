@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
     cout << "Distribution " << distribution << endl;
 
     for ( int q = 0; q < num_queues; q ++) {
-      cout << "Queue 1 | Arrival.p " << arrival_parameter[q].p << " | Arrival.n " << arrival_parameter[q].n << " | Arrival L " << arrival_parameter[q].lambda << " | Connection p " << connection_parameter[q].p << endl;
+      cout << "Queue " << q << " | Arrival.p " << arrival_parameter[q].p << " | Arrival.n " << arrival_parameter[q].n << " | Arrival L " << arrival_parameter[q].lambda << " | Connection p " << connection_parameter[q].p << endl;
     }
     cout << "#### End of Inputs #### " << endl;    
   }
